@@ -1,0 +1,79 @@
+name: Build Desktop Widgets
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller
+        pip install pywin32
+    
+    - name: Build executable
+      run: |
+        pyinstaller --onefile --windowed --name "DesktopWidgets" --icon=NONE --add-data "main.py;." main.py
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: DesktopWidgets-Windows
+        path: dist/DesktopWidgets.exe
+        retention-days: 90
+
+  release:
+    needs: build-windows
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Download artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: DesktopWidgets-Windows
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v1.0.${{ github.run_number }}
+        name: Desktop Widgets v1.0.${{ github.run_number }}
+        body: |
+          ## Desktop Widgets Application
+          
+          ### Features:
+          - 📅 Calendar with events
+          - ✅ To-Do List with priorities
+          - 📋 Day Planner
+          - 📆 Weekly Planner
+          - 🗓️ Monthly Planner
+          - 🍅 Pomodoro Timer with history
+          
+          ### Download:
+          Download `DesktopWidgets.exe` and run it directly. No installation needed!
+          
+          ### Usage:
+          - Drag widgets to position them
+          - Click 🎨 to change colors
+          - Click ⬇/⬆ to expand/collapse
+          - Click ⚙️ button (top-left corner) to access control panel
+        files: DesktopWidgets.exe
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
